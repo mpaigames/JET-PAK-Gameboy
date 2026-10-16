@@ -1,0 +1,40 @@
+name: Build Game Boy ROM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GBDK_VERSION: "4.3.0"   # change here to try a newer GBDK-2020 release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run game-logic tests
+        run: make test
+
+      - name: Install GBDK-2020
+        run: |
+          curl -fsSL -o gbdk.tar.gz "https://github.com/gbdk-2020/gbdk-2020/releases/download/${GBDK_VERSION}/gbdk-linux64.tar.gz"
+          tar -xzf gbdk.tar.gz -C "$HOME"
+          test -x "$HOME/gbdk/bin/lcc"
+
+      - name: Build ROM
+        working-directory: gb
+        run: make GBDK_HOME="$HOME/gbdk"
+
+      - name: Check ROM
+        run: |
+          ls -l gb/jetpak.gb
+          test "$(stat -c %s gb/jetpak.gb)" -ge 32768
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetpak-gameboy-rom
+          path: gb/jetpak.gb
+          if-no-files-found: error
